@@ -1,0 +1,2 @@
+DRIFTMIND_API_KEY=your-api-key-here
+DRIFTMIND_API_URL=https://api.thingbook.io/driftmind
