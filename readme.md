@@ -264,7 +264,7 @@ for var in columns:
     df_var = pd.DataFrame(results[var])
     utils.plot_actual_vs_predicted(df_var, var)
 ```
-![alt text](image.png)
+![alt text](images/image.pngimage.png)
 ---
 
 #### 📦 Response Format
