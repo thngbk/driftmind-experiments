@@ -1,14 +1,46 @@
 
+
 # DriftMind Client
 
-A Python client for interacting with the **DriftMind Forecasting Service**.
-This package makes it easy to:
+DriftMind is an **adaptive forecasting and anomaly detection engine** designed for **fast, real-time data environments**.  
+Unlike traditional forecasting systems that require long offline training phases, DriftMind uses an **online training approach**: it learns continuously from incoming data streams and can start generating forecasts as soon as enough points are fed.
 
-* Create and manage forecasters at scale
-* Recover details and data managed by forecasters at any point
-* Feed time-series data in real time
-* Request predictions as feeding data and check system clusters
-* Demonstrate DriftMind cold-start / continious training capabilities
+---
+
+## ✨ Why DriftMind?
+
+DriftMind is particularly well-suited for:
+
+- 🌐 **Streaming data scenarios** such as telecom, IoT, or finance  
+- ⚡ **Cold-start forecasting** — predictions available immediately without long historical training  
+- 🔍 **On-the-fly anomaly detection** using dynamic clustering  
+- 📈 **Scalable deployments** where thousands of forecasters can be created, queried, and updated in real time  
+
+---
+
+## 🔬 Core Concepts
+
+At its core, DriftMind blends:
+
+- **Online clustering** to adapt quickly to new patterns  
+- **Geometric forecasting** as a fallback when no cluster is available  
+- **Continuous learning** without explicit retraining steps  
+
+---
+
+## 🎯 What the Python Client Does
+
+The **DriftMind Client** is a lightweight Python package that makes it easy to:
+
+- Create and manage forecasters at scale  
+- Stream time-series data point by point or in batches  
+- Request forecasts, anomaly scores, and cluster insights at any time  
+- Visualize actual vs predicted values, anomaly scores, and cluster evolution  
+
+---
+
+With DriftMind, forecasting becomes a **live, adaptive process** — not a static one.
+
 
 ---
 
@@ -54,7 +86,22 @@ client = DriftMindClient(api_key, base_url)
 
 ---
 
-### 2. Create a forecaster
+### 2. Create a Forecaster
+
+A **forecaster** is the core unit in DriftMind: it maintains its own state, learns continuously from the data you feed, and produces forecasts, anomaly scores, and cluster information.
+
+---
+
+#### 🟢 Minimum configuration
+
+At minimum, you only need to specify:
+
+- **`forecasterName`** – A human-friendly name for the forecaster  
+- **`features`** – A list of feature names (columns in your dataset)  
+- **`inputSize`** – Number of past points used as input  
+- **`outputSize`** – Number of future points to forecast  
+
+Example:
 
 ```python
 forecaster = client.create_forecaster({
@@ -64,9 +111,63 @@ forecaster = client.create_forecaster({
     "outputSize": 1
 })
 fid = forecaster["forecaster_id"]
+````
+
+If only these parameters are provided, DriftMind applies sensible defaults for the rest.
+
+---
+
+#### ⚙️ Extended configuration
+
+You can override defaults to fine-tune behavior.
+
+**Full example:**
+
+```python
+forecaster = client.create_forecaster({
+  "forecasterName": "Machine Health Forecaster",
+  "features": ["vibration_g", "motor_temp_c", "power_kw"],
+  "inputSize": 30,
+  "outputSize": 1,
+  "maxClustersAllowed": 50,
+  "similarityThreshold": 0.8,
+  "timeStampIntervalInSeconds": 30,
+  "fitRate": 1,
+  "useCustomDateFormat": True,
+  "dateFormat": "dd-MM-yyyy HH:mm",
+  "useInitializationDate": True,
+  "initializationDate": "01-01-2025 00:00"
+})
+fid = forecaster["forecaster_id"]
 ```
 
 ---
+
+#### 📋 Parameter Reference
+
+| Parameter                    | Type   | Required | Default                            | Description                                                  |
+| ---------------------------- | ------ | -------- | ---------------------              | ------------------------------------------------------------ |
+| `forecasterName`             | string | ✅ Yes    | –                                 | Human-readable name for the forecaster.                     |
+| `features`                   | list   | ✅ Yes    | –                                 | List of feature names (columns in your dataset).            |
+| `inputSize`                  | int    | ✅ Yes    | –                                 | Number of past points used as input.                        |
+| `outputSize`                 | int    | ✅ Yes    | –                                 | Number of future points to forecast.                        |
+| `maxClustersAllowed`         | int    | No         | 200                              | Maximum number of clusters maintained.                       |
+| `similarityThreshold`        | float  | No        | 0.8                               | Similarity threshold (0–1) for assigning points to clusters. |
+| `timeStampIntervalInSeconds` | int    | No        | 60                                | Expected interval between points expressed in Seconds        |
+| `fitRate`                    | int    | No        | 1                                 | Frequency of model updates (lower = faster adaptation).     |
+| `useCustomDateFormat`        | bool   | No        | False                             | Whether to parse timestamps with a custom format.            |
+| `dateFormat`                 | string | No        | `yyyy-MM-dd HH:mm:ss`             | Date format when `useCustomDateFormat` is true.              |
+| `useInitializationDate`      | bool   | No        | False                             | Whether to align forecasts relative to a given start date.   |
+| `initializationDate`         | string | No        | System time at Forecaster Creation| Explicit start date.        |
+
+---
+
+With this flexibility, you can start with **minimal setup for quick prototyping**, and later move to **fine-grained configurations** for production scenarios like industrial IoT, telecom, or financial forecasting.
+
+
+
+---
+
 
 ### 3. Feed data
 
@@ -96,22 +197,38 @@ client.feed_data(fid, data_batch)
 
 ### 4. Forecast
 
-Once data has been fed, you can request a forecast.  
-⚠️ The forecast operation can only be requested once there is **enough data**, meaning:
+One of the key characteristics of **DriftMind** is its **online training approach**. This means there is no need for a formal training phase before requesting forecasts, the model begins learning as soon as data starts flowing in.
+
+The only requirement for generating a forecast is that a **minimum number of points** must be fed into the system. This number is simply the sum of the **input length** and the **output length**.
+
+For example, if the forecaster is configured with an input length of 20 and an output length of 5, the system must first receive **25 points** before it can produce a valid forecast. Once this threshold is reached, DriftMind can start delivering predictions in real time while continuously updating its internal models as new data arrives.
+
+---
 
 ```
+Minimum required points = Input length + Output length
 
-number of fed points ≥ inputSize + outputSize
+    |<---------------------------- Input (20 points) ------------------------->|<Output (5 points)>|
+---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●---●
+                                                                                                   ^ Forecast starts here
+```
 
-````
+---
+
 
 ```python
+#Forecaster Features
+columns = ["Sin", "Cos", "Tan"]
+
+#Request forecasting Data
 result = client.forecast(fid)
-yhat = extract_point_forecast(result, target="Sin")
 
-print("Predicted next Sin:", yhat)
-````
-
+# Visualize results
+for var in columns:
+    df_var = pd.DataFrame(results[var])
+    utils.plot_actual_vs_predicted(df_var, var)
+```
+![alt text](image.png)
 ---
 
 #### 📦 Response Format
@@ -162,14 +279,13 @@ A successful forecast request returns a JSON object with both global metrics and
 
 * **`anomalyScore` (float)** – Global anomaly score across all features.
 * **`numberOfClusters` (int)** – Total number of clusters currently maintained by the system.
-* **`allResults` (object)** – Per-feature forecast results. Each feature (e.g. `Sin`, `Cos`, `Tan`) contains:
-
+* **`FeaturesMap` (object)** – Per-feature forecast results. Each feature (e.g. `Sin`, `Cos`, `Tan`) contains:
   * **`timeStamps` (list\[str])** – Timestamps of forecasted points.
   * **`predictions` (list\[float])** – Forecasted values.
   * **`upperConfidence` / `lowerConfidence` (list\[float])** – Confidence interval bounds.
   * **`anomalyScore` (float)** – Anomaly score specific to this feature.
-  * **`forecastingMethod` (str)** – Forecasting approach used (e.g. `Clustering`, `Geometric`).
-  * **`numberOfClusters` (int)** – Number of clusters contributing to this feature’s forecast.
+  * **`forecastingMethod` (str)** – Forecasting approach used (e.g. `Clustering`, `Extension`, `Naive`).
+  * **`numberOfClusters` (int)** – Number of clusters active in the system for this Forecaster. the clusters model the recent and past beheviour with minimum footprint.
 
 ---
 
@@ -187,13 +303,84 @@ for feature, details in result["allResults"].items():
     print("Feature anomaly score:", details["anomalyScore"])
 ```
 
+---
+
+### 5. Recover forecaster data
+
+At any time, you can inspect the **data currently held by a forecaster**.  
+This is useful for debugging, validation, or verifying that data points are being stored correctly.
+
+```python
+data_snapshot = client.get_forecaster_data(fid)
+
+if data_snapshot:
+    for ts, values in data_snapshot["data"].items():
+        print(f"{ts} → {values}")
+Example response:
+```
+```json
+{
+  "data": {
+    "23-09-2025 18:54:20": { "Tan": -0.8335, "Sin": -0.6755, "Cos": 0.3708 },
+    "23-09-2025 18:55:20": { "Tan": -0.7879, "Sin": -0.6472, "Cos": 0 },
+    "23-09-2025 18:56:20": { "Tan": -0.7458, "Sin": -0.6164, "Cos": -0.3708 },
+    "23-09-2025 18:57:20": { "Tan": -0.7067, "Sin": -0.5832, "Cos": -0.7053 },
+    "23-09-2025 18:58:20": { "Tan": -0.6703, "Sin": -0.5476, "Cos": -0.9708 }
+  }
+}
+Each key in the data object is a timestamp, and its value is a dictionary containing the last known values for each feature.
+```
+
+### 6. List all forecasters
+
+You can query the system to get a list of all available forecasters. Each entry contains metadata such as the forecaster’s ID, name, creation date, and usage stats.
+
+```python
+all_forecasters = client.list_forecasters()
+
+if all_forecasters:
+    for f in all_forecasters:
+        print(f"ID={f['objectId']}, Name={f['objectName']}, Created={f['createdAt']}, Requests={f['requestsProcessed']}")
+```
 
 
+Example Response: 
+```json
 
+[
+  {
+    "objectId": "a82bdf13-becf-4a06-9c97-c7b106a8fbac",
+    "objectName": "Cold Start Demo",
+    "createdAt": "2025-09-22",
+    "createdBy": "VfYZ3hLQk6FohdPTkKXB0lC30DworzI5Mz0M2NTk1MDY3MjE4MDE4NDwE3MTA3OTA1NDUzMDc4Njg5NjA0Nw",
+    "objectType": "FORECASTER",
+    "dataProcessed": "-0.67",
+    "requestsProcessed": "601"
+  },
+  {
+    "objectId": "c339beb7-ae9b-4f3e-bb73-e4d4245cb507",
+    "objectName": "Basic Forecaster Creation",
+    "createdAt": "2025-09-22",
+    "createdBy": "VfYZ3hLQk6FohdPTkKXB0lC30DworzI5Mz0M2NTk1MDY3MjE4MDE4NDwE3MTA3OTA1NDUzMDc4Njg5NjA0Nw",
+    "objectType": "FORECASTER",
+    "dataProcessed": "-3.19",
+    "requestsProcessed": "1202"
+  }
+]
+```
+Each element in the list includes:
+
+* objectId – Unique ID of the forecaster
+* objectName – Human-readable name
+* createdAt – Date of creation
+* createdBy – API key used to create the forecaster
+* objectType – Always "FORECASTER" for these objects
+* dataProcessed – Amount of data processed (aggregate value)
+* requestsProcessed – Number of requests served by the forecaster
 
 ---
 
-### 5. Example: Cold-Start Demo
+### 8. Example: Cold-Start Demo
 
 A demo notebook is included in `notebooks/cold_start_demo.ipynb` which:
 

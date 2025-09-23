@@ -90,3 +90,43 @@ class DriftMindClient:
             print("Response:", r.text)
             return None
 
+    def get_forecaster_data(self, fid: str):
+        """Fetch the data currently held by a forecaster.
+        Returns dict with timestamps as keys and feature values as inner dicts.
+        """
+        url = f"{self.base_url}/forecaster/{fid}/data"
+        r = requests.get(url, headers=self._headers())
+
+        if r.status_code == 200:
+            try:
+                return r.json()
+            except ValueError:
+                print("⚠️ Forecaster data returned empty body")
+                return None
+        elif r.status_code == 404:
+            print(f"❌ Forecaster {fid} not found")
+            return None
+        else:
+            print("❌ Failed to fetch forecaster data")
+            print("Status:", r.status_code)
+            print("Response:", r.text)
+            return None
+
+    def list_forecasters(self):
+        """List all forecasters available in the system.
+        Returns a list of dicts, one per forecaster.
+        """
+        url = f"{self.base_url}"
+        r = requests.get(url, headers=self._headers())
+
+        if r.status_code == 200:
+            try:
+                return r.json()
+            except ValueError:
+                print("⚠️ No forecasters returned in body")
+                return []
+        else:
+            print("❌ Failed to list forecasters")
+            print("Status:", r.status_code)
+            print("Response:", r.text)
+            return []
