@@ -53,6 +53,7 @@ class DriftMindClient:
 
 
     def feed_point(self, fid: str, data_point: dict) -> bool:
+        """Feed a batch of data points to a forecaster. Returns True on success, else False."""
         payload = {"forecasterId": fid, "data": data_point}
         r = requests.patch(
             self.base_url,
@@ -76,6 +77,7 @@ class DriftMindClient:
 
 
     def forecast(self, fid: str):
+        """Request a forecast from a forecaster. Returns JSON dict if available, else None."""
         url = f"{self.base_url}/forecaster/{fid}/predict"
         r = requests.get(url, headers=self._headers())
 
@@ -111,11 +113,11 @@ class DriftMindClient:
             print("Status:", r.status_code)
             print("Response:", r.text)
             return None
+        
+    
 
     def list_forecasters(self):
-        """List all forecasters available in the system.
-        Returns a list of dicts, one per forecaster.
-        """
+        """List all forecasters available in the system. Returns a list of dicts, one per forecaster. """
         url = f"{self.base_url}"
         r = requests.get(url, headers=self._headers())
 

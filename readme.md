@@ -85,7 +85,7 @@ These are usually stored in `resources/DRIFTMIND_CONNECT.txt`:
 Clone the repository and install in editable mode:
 
 ```bash
-git clone https://github.com/thingbook-io/driftmind-client.git
+git clone https://github.com/thngbk/driftmind.git
 cd driftmind-client
 pip install -e .
 ````
