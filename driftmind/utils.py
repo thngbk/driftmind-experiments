@@ -40,3 +40,18 @@ def load_credentials(filepath=Path("../resources/DRIFTMIND_CONNECT.txt")):
             return False
 
         return credentials
+
+
+def plot_time_series(timestamp, df, title, xlabel, ylabel):
+    if timestamp.empty or df.empty:
+        print("No values to plot")
+        return
+    
+    plt.figure(figsize=(15, 3))
+    plt.plot(timestamp, df, color="red", linewidth=2)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()

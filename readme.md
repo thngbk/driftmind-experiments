@@ -1,13 +1,14 @@
 
 # DriftMind Client
 
-A Python client for interacting with the **DriftMind Forecasting API**.
+A Python client for interacting with the **DriftMind Forecasting Service**.
 This package makes it easy to:
 
-* Create and manage forecasters
-* Feed time-series data
-* Request predictions
-* Demonstrate DriftMind capabilities
+* Create and manage forecasters at scale
+* Recover details and data managed by forecasters at any point
+* Feed time-series data in real time
+* Request predictions as feeding data and check system clusters
+* Demonstrate DriftMind cold-start / continious training capabilities
 
 ---
 
@@ -28,13 +29,13 @@ pip install -e .
 The client requires two pieces of information:
 
 * **API key**
-* **Base URL** of the DriftMind API (e.g. `http://localthingbook.io:32081/access/api/driftmind`)
+* **Base URL** of the DriftMind API (e.g. `https://api.thingbook.io/access/api/driftmind`)
 
 These are typically stored in `resources/DRIFTMIND_CONNECT.txt`:
 
 ```
 DRIFTMIND_API_KEY=your_api_key
-DRIFTMIND_API_URL=http://localthingbook.io:32081/access/api/driftmind
+DRIFTMIND_API_URL=https://api.thingbook.io/access/api/driftmind
 ```
 
 ---
@@ -58,7 +59,7 @@ client = DriftMindClient(api_key, base_url)
 ```python
 forecaster = client.create_forecaster({
     "forecasterName": "Cold Start Demo",
-    "features": ["Sin", "Cos", "Tan", "Sequence"],
+    "features": ["Sin", "Cos", "Tan"],
     "inputSize": 15,
     "outputSize": 1
 })
@@ -75,8 +76,7 @@ Data must always be passed as arrays (`double[]` on the server side):
 data_point = {
     "Sin": [0.12],
     "Cos": [0.34],
-    "Tan": [0.56],
-    "Sequence": [42]
+    "Tan": [0.56]
 }
 client.feed_data(fid, data_point)
 ```
@@ -87,8 +87,7 @@ You can also batch multiple points:
 data_batch = {
     "Sin": [0.12, 0.13, 0.14],
     "Cos": [0.34, 0.35, 0.36],
-    "Tan": [0.56, 0.57, 0.58],
-    "Sequence": [42, 43, 44]
+    "Tan": [0.56, 0.57, 0.58]
 }
 client.feed_data(fid, data_batch)
 ```
@@ -97,12 +96,100 @@ client.feed_data(fid, data_batch)
 
 ### 4. Forecast
 
+Once data has been fed, you can request a forecast.  
+⚠️ The forecast operation can only be requested once there is **enough data**, meaning:
+
+```
+
+number of fed points ≥ inputSize + outputSize
+
+````
+
 ```python
 result = client.forecast(fid)
 yhat = extract_point_forecast(result, target="Sin")
 
 print("Predicted next Sin:", yhat)
+````
+
+---
+
+#### 📦 Response Format
+
+A successful forecast request returns a JSON object with both global metrics and per-feature results.
+
+**Example response:**
+
+```json
+{
+  "anomalyScore": 0.03,
+  "numberOfClusters": 24,
+  "FeaturesMap": {
+    "Tan": {
+      "timeStamps": ["23-09-2025 01:33:37"],
+      "predictions": [-0.3633],
+      "upperConfidence": [-0.1078],
+      "lowerConfidence": [-1.8216],
+      "anomalyScore": 0,
+      "forecastingMethod": "Clustering",
+      "numberOfClusters": 8
+    },
+    "Cos": {
+      "timeStamps": ["23-09-2025 01:33:37"],
+      "predictions": [1.5515],
+      "upperConfidence": [1.7922],
+      "lowerConfidence": [1.3251],
+      "anomalyScore": 0.07,
+      "forecastingMethod": "Clustering",
+      "numberOfClusters": 8
+    },
+    "Sin": {
+      "timeStamps": ["23-09-2025 01:33:37"],
+      "predictions": [-0.0016],
+      "upperConfidence": [0.2502],
+      "lowerConfidence": [-0.2372],
+      "anomalyScore": 0.01,
+      "forecastingMethod": "Clustering",
+      "numberOfClusters": 8
+    }
+  }
+}
 ```
+
+---
+
+#### 🔑 Field Descriptions
+
+* **`anomalyScore` (float)** – Global anomaly score across all features.
+* **`numberOfClusters` (int)** – Total number of clusters currently maintained by the system.
+* **`allResults` (object)** – Per-feature forecast results. Each feature (e.g. `Sin`, `Cos`, `Tan`) contains:
+
+  * **`timeStamps` (list\[str])** – Timestamps of forecasted points.
+  * **`predictions` (list\[float])** – Forecasted values.
+  * **`upperConfidence` / `lowerConfidence` (list\[float])** – Confidence interval bounds.
+  * **`anomalyScore` (float)** – Anomaly score specific to this feature.
+  * **`forecastingMethod` (str)** – Forecasting approach used (e.g. `Clustering`, `Geometric`).
+  * **`numberOfClusters` (int)** – Number of clusters contributing to this feature’s forecast.
+
+---
+
+#### 🔍 Example: Working with Forecasts
+
+```python
+# Access global anomaly score
+print("Global anomaly score:", result["anomalyScore"])
+
+# Iterate over feature forecasts
+for feature, details in result["allResults"].items():
+    print(f"\nFeature: {feature}")
+    print("Predicted:", details["predictions"][0])
+    print("Confidence interval:", (details["lowerConfidence"][0], details["upperConfidence"][0]))
+    print("Feature anomaly score:", details["anomalyScore"])
+```
+
+
+
+
 
 ---
 
