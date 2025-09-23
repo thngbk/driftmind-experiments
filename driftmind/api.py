@@ -130,3 +130,27 @@ class DriftMindClient:
             print("Status:", r.status_code)
             print("Response:", r.text)
             return []
+        
+
+    def get_forecaster_details(self, fid: str):
+        """Fetch configuration details for a specific forecaster.
+        Returns a dict if available, else None.
+        """
+        url = f"{self.base_url}/forecaster/{fid}/details"
+        r = requests.get(url, headers=self._headers())
+
+        if r.status_code == 200:
+            try:
+                return r.json()
+            except ValueError:
+                print("⚠️ Forecaster details returned empty body")
+                return None
+        elif r.status_code == 404:
+            print(f"❌ Forecaster {fid} not found")
+            return None
+        else:
+            print("❌ Failed to fetch forecaster details")
+            print("Status:", r.status_code)
+            print("Response:", r.text)
+            return None
+

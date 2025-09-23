@@ -44,6 +44,42 @@ With DriftMind, forecasting becomes a **live, adaptive process** — not a stati
 
 ---
 
+## 🛠 Prerequisites
+
+Before using the DriftMind Client, make sure you have the following:
+
+### 1. Python environment
+- Python **3.8+**  
+- [pip](https://pip.pypa.io/en/stable/) for installing dependencies  
+
+The package depends on:
+- `requests`
+- `pandas`
+- `matplotlib` (for visualization utilities)
+
+All dependencies will be installed automatically via `pip install -e .`.
+
+---
+
+### 2. DriftMind backend service
+The client communicates with the **DriftMind API service**.  
+You will need either:
+- Access to a **Thingbook.io hosted DriftMind endpoint**, or  
+- A **local deployment** of the DriftMind backend (Kubernetes) if you are running Thingbook Backend on-prem.  
+
+Without a running DriftMind API, the client cannot create forecasters or request forecasts.
+
+---
+
+### 3. API credentials
+You need:
+- **API key** (provided by your DriftMind deployment)  
+- **Base URL** of the DriftMind API (e.g. `https://api.thingbook.io/access/api/driftmind`)  
+
+These are usually stored in `resources/DRIFTMIND_CONNECT.txt`:
+
+---
+
 ## 🚀 Installation
 
 Clone the repository and install in editable mode:
@@ -111,7 +147,7 @@ forecaster = client.create_forecaster({
     "outputSize": 1
 })
 fid = forecaster["forecaster_id"]
-````
+```
 
 If only these parameters are provided, DriftMind applies sensible defaults for the rest.
 
@@ -316,8 +352,8 @@ data_snapshot = client.get_forecaster_data(fid)
 if data_snapshot:
     for ts, values in data_snapshot["data"].items():
         print(f"{ts} → {values}")
-Example response:
 ```
+Example response. Each key in the data object is a timestamp, and its value is a dictionary containing the last known values for each feature.
 ```json
 {
   "data": {
@@ -328,7 +364,7 @@ Example response:
     "23-09-2025 18:58:20": { "Tan": -0.6703, "Sin": -0.5476, "Cos": -0.9708 }
   }
 }
-Each key in the data object is a timestamp, and its value is a dictionary containing the last known values for each feature.
+
 ```
 
 ### 6. List all forecasters
@@ -370,17 +406,55 @@ Example Response:
 ```
 Each element in the list includes:
 
-* objectId – Unique ID of the forecaster
-* objectName – Human-readable name
-* createdAt – Date of creation
-* createdBy – API key used to create the forecaster
-* objectType – Always "FORECASTER" for these objects
-* dataProcessed – Amount of data processed (aggregate value)
-* requestsProcessed – Number of requests served by the forecaster
+* **objectId** – Unique ID of the forecaster  
+* **objectName** – Human-readable name  
+* **createdAt** – Date of creation  
+* **createdBy** – API key used to create the forecaster  
+* **objectType** – Always `"FORECASTER"` for these objects  
+* **dataProcessed** – Amount of data processed (aggregate value) in MB. This value will be always negative  
+* **requestsProcessed** – Number of requests served by the forecaster  
+
 
 ---
 
-### 8. Example: Cold-Start Demo
+### 8. Get forecaster details
+
+You can inspect the **configuration and properties of a specific forecaster** using its ID.  
+This is useful for verifying feature setup, parameters, and metadata.
+
+```python
+fid = "529cd364-67b2-4f04-8c07-c42b5740b3aa"
+details = client.get_forecaster_details(fid)
+
+if details:
+    print("Forecaster Name:", details["forecasterName"])
+    print("Features:", details["features"])
+    print("Input Size:", details["properities"]["inputSize"])
+    print("Output Size:", details["properities"]["outputSize"])
+```
+
+Example response:
+
+```json
+{
+  "features": ["Tan", "Sin", "Cos"],
+  "properities": {
+    "fitRate": "1",
+    "initializationDate": "23-09-2025 09:37:13",
+    "maxClustersAllowed": "100",
+    "dateFormat": "dd-MM-yyyy HH:mm:ss",
+    "similarityThreshold": "0.8",
+    "timeStampIntervalInSeconds": "60",
+    "outputSize": "1",
+    "inputSize": "15"
+  },
+  "forecasterId": "529cd364-67b2-4f04-8c07-c42b5740b3aa",
+  "forecasterName": "Cold Start Demo"
+}
+```
+
+---
+### 9. Example: Cold-Start Demo
 
 A demo notebook is included in `notebooks/cold_start_demo.ipynb` which:
 
@@ -389,16 +463,6 @@ A demo notebook is included in `notebooks/cold_start_demo.ipynb` which:
 * Feeds data point by point
 * Requests forecasts in the loop
 * Plots Actual vs Predicted for all three features
-
----
-
-## 🧪 Development
-
-Run tests with:
-
-```bash
-pytest
-```
 
 ---
 
